@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     if (error) throw error;
 
     if (data) {
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, token: process.env.SESSION_TOKEN });
     } else {
       return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
     }
