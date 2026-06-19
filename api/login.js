@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { SignJWT } from 'jose';
-import bcrypt from 'bcryptjs';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const bcrypt = require('bcryptjs');
 
 const supabase = createClient(
   process.env.SUPA_URL,
