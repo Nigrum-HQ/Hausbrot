@@ -1652,7 +1652,7 @@ async function procesarFotoTicket(event){
     });
     const response=await fetch('/api/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-session-token':sessionStorage.getItem('hb_token')||''},
       body:JSON.stringify({
         model:'claude-sonnet-4-5',
         max_tokens:1000,
@@ -1977,7 +1977,7 @@ async function leerFacturaPDF(event){
       :{type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}};
     const response=await fetch('/api/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-session-token':sessionStorage.getItem('hb_token')||''},
       body:JSON.stringify({
         model:'claude-sonnet-4-5',
         max_tokens:1000,
@@ -3123,17 +3123,24 @@ if(sessionStorage.getItem('hb_auth')==='1'){
 }
 
 
-function hbDoLogin(){
+async function hbDoLogin(){
   var user=document.getElementById('hb-login-user').value.trim();
   var pass=document.getElementById('hb-login-pass').value;
   var err=document.getElementById('hb-login-error');
-  if(user==='Hausbrot'&&pass==='Bellavista2026'){
-    document.getElementById('hb-login-overlay').style.display='none';
-    sessionStorage.setItem('hb_auth','1');
-  } else {
+  try {
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:user,password:pass})});
+    const d=await r.json();
+    if(d.ok && d.token){
+      document.getElementById('hb-login-overlay').style.display='none';
+      sessionStorage.setItem('hb_auth','1');
+      sessionStorage.setItem('hb_token',d.token);
+    } else {
+      err.style.display='block';
+      document.getElementById('hb-login-pass').value='';
+      document.getElementById('hb-login-pass').focus();
+    }
+  } catch(e){
     err.style.display='block';
-    document.getElementById('hb-login-pass').value='';
-    document.getElementById('hb-login-pass').focus();
   }
 }
 document.addEventListener('keydown',function(e){
