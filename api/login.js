@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { SignJWT } from 'jose';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
 const supabase = createClient(
   process.env.SUPA_URL,
@@ -19,7 +19,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Buscar usuario en Supabase
     const { data, error } = await supabase
       .from('hausbrot_usuarios')
       .select('id, usuario, password_hash')
@@ -30,19 +29,18 @@ export default async function handler(req, res) {
       return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
     }
 
-    // Verificar contraseña con bcrypt
     const valid = await bcrypt.compare(password, data.password_hash);
 
     if (!valid) {
       return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
     }
 
-    // Generar JWT único por sesión, expira en 8 horas
-    const token = jwt.sign(
-      { id: data.id, usuario: data.usuario },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' }
-    );
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const token = await new SignJWT({ id: data.id, usuario: data.usuario })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('8h')
+      .sign(secret);
 
     return res.status(200).json({ ok: true, token });
 
