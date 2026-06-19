@@ -3,6 +3,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const token = req.headers['x-session-token'];
+  if (!token || token !== process.env.SESSION_TOKEN) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+
   const { imagen, prompt } = req.body;
 
   if (!imagen || !prompt) {
@@ -31,7 +36,7 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    return res.status(200).json(data);
+    return res.status(response.status).json(data);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
