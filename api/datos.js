@@ -5,7 +5,16 @@ const supabase = createClient(
   process.env.SUPA_KEY
 );
 
+function autenticado(req) {
+  const token = req.headers['x-session-token'];
+  return token && token === process.env.SESSION_TOKEN;
+}
+
 export default async function handler(req, res) {
+  if (!autenticado(req)) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
