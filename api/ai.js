@@ -1,10 +1,21 @@
+import { jwtVerify } from 'jose';
+
+async function autenticado(req) {
+  const token = req.headers['x-session-token'];
+  if (!token) return false;
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    await jwtVerify(token, secret);
+    return true;
+  } catch { return false; }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const token = req.headers['x-session-token'];
-  if (!token || token !== process.env.SESSION_TOKEN) {
+  if (!await autenticado(req)) {
     return res.status(401).json({ error: 'No autorizado' });
   }
 
@@ -18,7 +29,6 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(req.body)
     });
-
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (err) {
