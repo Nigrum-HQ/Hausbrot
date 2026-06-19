@@ -1,14 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import { SignJWT } from 'jose';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const bcrypt = require('bcryptjs');
+import { createHmac, timingSafeEqual } from 'crypto';
 
 const supabase = createClient(
   process.env.SUPA_URL,
   process.env.SUPA_KEY
 );
+
+function verifyHash(password, stored) {
+  // formato: salt:hash
+  const [salt, expectedHash] = stored.split(':');
+  if (!salt || !expectedHash) return false;
+  const actualHash = createHmac('sha256', salt).update(password).digest('hex');
+  try {
+    return timingSafeEqual(Buffer.from(actualHash), Buffer.from(expectedHash));
+  } catch {
+    return false;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -32,7 +41,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
     }
 
-    const valid = await bcrypt.compare(password, data.password_hash);
+    const valid = verifyHash(password, data.password_hash);
 
     if (!valid) {
       return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
