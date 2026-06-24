@@ -1552,8 +1552,10 @@ async function guardarDatos(){
 }
 async function cargarDatos(){
   try{
+    const tok = hbToken();
+    if(!tok){ sessionStorage.removeItem('hb_auth'); return; }
     const r=await fetch('/api/datos',{
-      headers:{'x-session-token':hbToken()}
+      headers:{'x-session-token':tok}
     });
     if(r.status===401){sessionStorage.removeItem('hb_auth');sessionStorage.removeItem('hb_token');location.reload();return;}
     const d=await r.json();
@@ -3104,6 +3106,7 @@ async function doLogin(){
     const sesion = await supaLogin(email, pass);
     document.getElementById('login-overlay').style.display='none';
     sessionStorage.setItem('hb_auth','1');
+    if(sesion && sesion.token) sessionStorage.setItem('hb_token', sesion.token);
   }catch(e){
     err.style.display='block';
     err.textContent = e.message || 'Usuario o contraseña incorrectos';
