@@ -3107,6 +3107,9 @@ async function doLogin(){
     document.getElementById('login-overlay').style.display='none';
     sessionStorage.setItem('hb_auth','1');
     if(sesion && sesion.token) sessionStorage.setItem('hb_token', sesion.token);
+    // Cargar datos ahora que el token está disponible
+    await cargarDatos();
+    try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderPendientes();}catch(e){}
   }catch(e){
     err.style.display='block';
     err.textContent = e.message || 'Usuario o contraseña incorrectos';
