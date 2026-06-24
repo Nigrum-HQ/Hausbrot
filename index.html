@@ -1476,8 +1476,7 @@ const mesActual=new Date().toISOString().substring(0,7);
 ['sue-mes','fran-reg-mes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=mesActual});
 
 const STORAGE_KEY='panaderia_data_v1';
-const SUPA_URL = 'https://timsqagonuavwtcbpere.supabase.co';
-const SUPA_KEY = 'sb_publishable_ZFVaKje4T6_ynT1N_9u8zw_RVVH7TOV';
+function hbToken(){ return sessionStorage.getItem('hb_token')||''; }
 
 function exportarAAbesa(){
   try{
@@ -1541,23 +1540,25 @@ function exportarAAbesa(){
 async function guardarDatos(){
   try{
     const json=JSON.stringify(data);
-    await fetch(SUPA_URL+'/rest/v1/hausbrot_data?id=eq.1',{
-      method:'PATCH',
-      headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'},
-      body:JSON.stringify({data:json,updated_at:new Date().toISOString()})
+    const r=await fetch('/api/datos',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','x-session-token':hbToken()},
+      body:json
     });
+    if(r.status===401){sessionStorage.removeItem('hb_auth');sessionStorage.removeItem('hb_token');location.reload();return;}
     const ind=document.getElementById('save-indicator');
     if(ind){ind.style.display='inline';clearTimeout(ind._t);ind._t=setTimeout(()=>ind.style.display='none',2000);}
   }catch(e){console.error('Error guardando datos',e);}
 }
 async function cargarDatos(){
   try{
-    const res=await fetch(SUPA_URL+'/rest/v1/hausbrot_data?id=eq.1&select=data',{
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
+    const r=await fetch('/api/datos',{
+      headers:{'x-session-token':hbToken()}
     });
-    const rows=await res.json();
-    if(rows&&rows[0]&&rows[0].data){
-      const saved=JSON.parse(rows[0].data);
+    if(r.status===401){sessionStorage.removeItem('hb_auth');sessionStorage.removeItem('hb_token');location.reload();return;}
+    const d=await r.json();
+    if(d&&d.data){
+      const saved=JSON.parse(d.data);
       data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],...saved};
     }
   }catch(e){console.error('Error cargando datos',e);}
@@ -3396,28 +3397,29 @@ async function supaLogin(email, pass) {
   }
   if((Date.now()-rl.t) >= cincoMin) localStorage.removeItem(key);
 
-  const res = await fetch(SUPA_URL+'/rest/v1/rpc/verificar_password',{
+  const res = await fetch('/api/login',{
     method:'POST',
-    headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
-    body:JSON.stringify({p_email:email.toLowerCase().trim(), p_pass:pass})
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:email.toLowerCase().trim(), password:pass})
   });
 
-  let usuario = null;
-  if(res.ok){
-    const data = await res.json();
-    usuario = Array.isArray(data) ? data[0] : data;
+  if(!res.ok){
+    const n = raw ? JSON.parse(raw) : {c:0, t:Date.now()};
+    localStorage.setItem(key, JSON.stringify({c:n.c+1, t:n.t||Date.now()}));
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error||'Email o contraseña incorrectos');
   }
 
-  if(!usuario || !usuario.id){
+  const d = await res.json();
+  if(!d.ok || !d.token){
     const n = raw ? JSON.parse(raw) : {c:0, t:Date.now()};
     localStorage.setItem(key, JSON.stringify({c:n.c+1, t:n.t||Date.now()}));
     throw new Error('Email o contraseña incorrectos');
   }
 
-  const sesion = {usuario, expira: Date.now()+8*60*60*1000};
-  localStorage.setItem('supa_sesion', JSON.stringify(sesion));
+  sessionStorage.setItem('hb_token', d.token);
   localStorage.removeItem(key);
-  return sesion;
+  return {token: d.token};
 }
 
 function supaGetSesion(){
