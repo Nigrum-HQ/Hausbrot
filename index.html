@@ -3219,19 +3219,23 @@ function exportarPDF(tipo){
   let contenido='';
 
   if(tipo==='resumen'){
-    const totalIngresos=data.turnos.reduce((s,t)=>s+t.total,0)+data.manuales.reduce((s,m)=>s+m.monto,0);
-    const totalGastos=data.gastos.reduce((s,g)=>s+g.monto,0);
-    const totalProv=data.proveedores.filter(p=>p.estado==='Pagado').reduce((s,p)=>s+p.monto,0);
-    const totalSue=data.sueldos.filter(s=>s.estado==='Pagado').reduce((s,e)=>s+e.monto,0);
-    const totalFran=data.franquerosPagos.filter(p=>p.estado==='Pagado').reduce((s,p)=>s+p.total,0);
+    const mes = (document.getElementById('filtro-mes-resumen')||{}).value || '';
+    const mesLabel = mes ? new Date(mes+'-02').toLocaleString('es-AR',{month:'long',year:'numeric'}) : 'Todos los períodos';
+    const filtraFecha = (fecha) => !mes || (fecha && fecha.startsWith(mes));
+
+    const totalIngresos=data.turnos.filter(t=>filtraFecha(t.fecha)).reduce((s,t)=>s+t.total,0)+data.manuales.filter(m=>filtraFecha(m.fecha)).reduce((s,m)=>s+m.monto,0);
+    const totalGastos=data.gastos.filter(g=>filtraFecha(g.fecha)).reduce((s,g)=>s+g.monto,0);
+    const totalProv=data.proveedores.filter(p=>p.estado==='Pagado'&&filtraFecha(p.fecha)).reduce((s,p)=>s+p.monto,0);
+    const totalSue=data.sueldos.filter(s=>s.estado==='Pagado'&&filtraFecha(s.fecha)).reduce((s,e)=>s+e.monto,0);
+    const totalFran=data.franquerosPagos.filter(p=>p.estado==='Pagado'&&filtraFecha(p.fecha)).reduce((s,p)=>s+p.total,0);
     const totalEgresos=totalGastos+totalProv+totalSue+totalFran;
     const resultado=totalIngresos-totalEgresos;
     const esGan=resultado>=0;
-    const provPend=data.proveedores.filter(p=>p.estado!=='Pagado').reduce((s,p)=>s+p.monto,0);
-    const suePend=data.sueldos.filter(s=>s.estado==='Pendiente').reduce((s,e)=>s+e.monto,0);
+    const provPend=data.proveedores.filter(p=>p.estado!=='Pagado'&&filtraFecha(p.fecha)).reduce((s,p)=>s+p.monto,0);
+    const suePend=data.sueldos.filter(s=>s.estado==='Pendiente'&&filtraFecha(s.fecha)).reduce((s,e)=>s+e.monto,0);
 
     contenido=`
-      <h2>📊 Resumen financiero general</h2>
+      <h2>📊 Resumen financiero — ${mesLabel}</h2>
       <div class="cards">
         <div class="card"><div class="card-label">Ingresos totales</div><div class="card-value green">${fmt(totalIngresos)}</div></div>
         <div class="card"><div class="card-label">Egresos totales</div><div class="card-value red">${fmt(totalEgresos)}</div></div>
