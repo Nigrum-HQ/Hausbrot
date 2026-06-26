@@ -171,6 +171,7 @@
   <button class="nav-btn" onclick="showSection(&#39;ingresos&#39;,this)">📈 Ingresos</button>
   <button class="nav-btn" onclick="showSection(&#39;gastos&#39;,this)">📉 Gastos</button>
   <button class="nav-btn" onclick="showSection(&#39;proveedores&#39;,this)">🚚 Proveedores</button>
+  <button class="nav-btn" onclick="showSection('fichas',this)">📋 Fichas</button>
   <button class="nav-btn" onclick="showSection(&#39;sueldos&#39;,this)">👥 Sueldos</button>
   <button class="nav-btn" onclick="showSection(&#39;vendedoras&#39;,this)">🙋 Vendedoras</button>
   <button class="nav-btn" onclick="showSection(&#39;franqueros&#39;,this)">🔄 Franqueros</button>
@@ -631,6 +632,50 @@
 </div>
 
 <!-- PROVEEDORES -->
+
+<div id="section-fichas" class="section">
+  <div class="section-title">📋 Fichas de proveedores</div>
+
+  <!-- FORM NUEVA FICHA -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#3d2c1e">+ Nueva ficha de proveedor</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+      <div class="fg"><label>Nombre / Razón Social</label><input id="ficha-nombre" type="text" placeholder="Ej: La Choza SRL"></div>
+      <div class="fg"><label>CUIT</label><input id="ficha-cuit" type="text" placeholder="Ej: 30-12345678-9"></div>
+      <div class="fg"><label>Banco</label><input id="ficha-banco" type="text" placeholder="Ej: Galicia, Mercado Pago"></div>
+      <div class="fg"><label>CBU</label><input id="ficha-cbu" type="text" placeholder="22 dígitos"></div>
+      <div class="fg"><label>Alias</label><input id="ficha-alias" type="text" placeholder="Ej: lachoza.pagos"></div>
+      <div class="fg"><label>Teléfono / Contacto</label><input id="ficha-tel" type="text" placeholder="Ej: 11-1234-5678"></div>
+    </div>
+    <div class="fg" style="margin-top:8px"><label>Notas</label><input id="ficha-notas" type="text" placeholder="Ej: paga los lunes, factura tipo B, etc."></div>
+    <button class="btn btn-primary" style="margin-top:12px" onclick="addFicha()">+ Guardar ficha</button>
+  </div>
+
+  <!-- BUSCADOR -->
+  <div style="margin-bottom:12px">
+    <input id="ficha-search" type="text" placeholder="🔍 Buscar proveedor..." oninput="renderFichas()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #d3d1c7;font-size:13px;font-family:inherit">
+  </div>
+
+  <!-- TABLA -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="background:#f5f0ea;color:#5f5e5a;font-size:12px;font-weight:600">
+          <th style="padding:10px 12px;text-align:left">Nombre</th>
+          <th style="padding:10px 12px;text-align:left">CUIT</th>
+          <th style="padding:10px 12px;text-align:left">Banco</th>
+          <th style="padding:10px 12px;text-align:left">CBU</th>
+          <th style="padding:10px 12px;text-align:left">Alias</th>
+          <th style="padding:10px 12px;text-align:left">Tel.</th>
+          <th style="padding:10px 12px;text-align:left">Notas</th>
+          <th style="padding:10px 12px"></th>
+        </tr>
+      </thead>
+      <tbody id="fichas-table"></tbody>
+    </table>
+  </div>
+</div>
+
 <div id="section-proveedores" class="section">
   <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
     <span>🚚 Pagos a proveedores</span>
@@ -1561,7 +1606,7 @@ async function cargarDatos(){
     const d=await r.json();
     if(d&&d.data){
       const saved=JSON.parse(d.data);
-      data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],...saved};
+      data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[],...saved};
     }
   }catch(e){console.error('Error cargando datos',e);}
 }
@@ -1587,7 +1632,7 @@ function importarDatos(event){
     try{
       const texto=e.target.result;
       const imported=JSON.parse(texto);
-      data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],...imported};
+      data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[],...imported};
       guardarDatos();
       updateDashboard();
       renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();
@@ -1606,15 +1651,15 @@ function importarDatos(event){
 
 function resetearDatos(){
   if(!confirm('¿Seguro que querés borrar TODOS los datos? Esta acción no se puede deshacer.'))return;
-  data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[]};
+  data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[]};
   guardarDatos();
   renderTurnos();renderManuales();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderVendedoras();updateVendedoraSelects();updateDashboard();
   alert('Datos borrados.');
 }
 
-let data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[]};
+let data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[]};
 cargarDatos().then(()=>{
-  try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderPendientes();}catch(e){}
+  try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();renderPendientes();}catch(e){}
 });
 
 // Auto-seleccionar mes actual
@@ -2901,6 +2946,75 @@ function addVendedora(){
   guardarDatos();renderVendedoras();updateVendedoraSelects();
 }
 
+// ═══════════════════════════════
+// FICHAS DE PROVEEDORES
+// ═══════════════════════════════
+function addFicha(){
+  const nombre = document.getElementById('ficha-nombre').value.trim();
+  if(!nombre){ alert('Ingresá el nombre del proveedor'); return; }
+  const ficha = {
+    id: Date.now(),
+    nombre,
+    cuit:  document.getElementById('ficha-cuit').value.trim(),
+    banco: document.getElementById('ficha-banco').value.trim(),
+    cbu:   document.getElementById('ficha-cbu').value.trim(),
+    alias: document.getElementById('ficha-alias').value.trim(),
+    tel:   document.getElementById('ficha-tel').value.trim(),
+    notas: document.getElementById('ficha-notas').value.trim(),
+  };
+  if(!data.fichas) data.fichas = [];
+  data.fichas.push(ficha);
+  guardarDatos();
+  renderFichas();
+  ['nombre','cuit','banco','cbu','alias','tel','notas'].forEach(f=>document.getElementById('ficha-'+f).value='');
+}
+
+function delFicha(id){
+  if(!confirm('¿Eliminar esta ficha?')) return;
+  data.fichas = (data.fichas||[]).filter(f=>f.id!==id);
+  guardarDatos();
+  renderFichas();
+}
+
+function copiar(texto, btn){
+  navigator.clipboard.writeText(texto).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(()=>btn.textContent=orig, 1500);
+  });
+}
+
+function renderFichas(){
+  if(!data.fichas) data.fichas = [];
+  const tb = document.getElementById('fichas-table');
+  if(!tb) return;
+  const q = (document.getElementById('ficha-search')||{}).value?.toLowerCase()||'';
+  const fichas = data.fichas.filter(f=>
+    !q || f.nombre.toLowerCase().includes(q) || (f.cuit||'').includes(q) || (f.alias||'').toLowerCase().includes(q)
+  ).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+
+  if(!fichas.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:20px">Sin fichas cargadas</td></tr>';
+    return;
+  }
+  tb.innerHTML = fichas.map(f=>`
+    <tr style="border-bottom:1px solid #f0ebe3">
+      <td style="padding:10px 12px;font-weight:600;color:#3d2c1e">${f.nombre}</td>
+      <td style="padding:10px 12px;color:#5f5e5a;font-size:12px">${f.cuit||'—'}</td>
+      <td style="padding:10px 12px;color:#5f5e5a;font-size:12px">${f.banco||'—'}</td>
+      <td style="padding:10px 12px;font-size:12px">
+        ${f.cbu?`<span style="font-family:monospace">${f.cbu}</span> <button onclick="copiar('${f.cbu}',this)" style="background:none;border:1px solid #d3d1c7;border-radius:4px;cursor:pointer;font-size:10px;padding:1px 5px;color:#5f5e5a">📋</button>`:'—'}
+      </td>
+      <td style="padding:10px 12px;font-size:12px">
+        ${f.alias?`<b>${f.alias}</b> <button onclick="copiar('${f.alias}',this)" style="background:none;border:1px solid #d3d1c7;border-radius:4px;cursor:pointer;font-size:10px;padding:1px 5px;color:#5f5e5a">📋</button>`:'—'}
+      </td>
+      <td style="padding:10px 12px;color:#5f5e5a;font-size:12px">${f.tel||'—'}</td>
+      <td style="padding:10px 12px;color:#5f5e5a;font-size:12px;max-width:180px">${f.notas||'—'}</td>
+      <td style="padding:10px 12px"><button class="delete-btn" onclick="delFicha(${f.id})">🗑</button></td>
+    </tr>
+  `).join('');
+}
+
 function renderVendedoras(){
   const tb=document.getElementById('vendedoras-table');
   const cards=document.getElementById('vendedoras-cards');
@@ -3092,7 +3206,7 @@ function adjuntarPDF(event,id,seccion){
   reader.readAsDataURL(file);
 }
 
-updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();
+updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();
 
 async function doLogin(){
   const email = document.getElementById('login-user').value.trim().toLowerCase();
@@ -3109,7 +3223,7 @@ async function doLogin(){
     if(sesion && sesion.token) sessionStorage.setItem('hb_token', sesion.token);
     // Cargar datos ahora que el token está disponible
     await cargarDatos();
-    try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderPendientes();}catch(e){}
+    try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();renderPendientes();}catch(e){}
   }catch(e){
     err.style.display='block';
     err.textContent = e.message || 'Usuario o contraseña incorrectos';
