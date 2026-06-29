@@ -1608,6 +1608,23 @@ async function cargarDatos(){
     if(d&&d.data){
       const saved=JSON.parse(d.data);
       data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[],fichasEmpleadas:{},...saved};
+    } else {
+      // Fallback: leer de localStorage (datos viejos)
+      const keys = ['pasteleria_data_v1','hausbrot_data','hb_data'];
+      for(const k of keys){
+        try{
+          const raw = localStorage.getItem(k);
+          if(raw){
+            const saved = JSON.parse(raw);
+            data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[],fichasEmpleadas:{},...saved};
+            console.log('Datos cargados desde localStorage key:', k);
+            // Migrar a Supabase automáticamente
+            await guardarDatos();
+            console.log('Datos migrados a Supabase');
+            break;
+          }
+        }catch(e2){console.error('Error leyendo localStorage',k,e2);}
+      }
     }
   }catch(e){console.error('Error cargando datos',e);}
 }
