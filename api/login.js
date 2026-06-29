@@ -8,7 +8,6 @@ const supabase = createClient(
 );
 
 function verifyHash(password, stored) {
-  // formato: salt:hash
   const [salt, expectedHash] = stored.split(':');
   if (!salt || !expectedHash) return false;
   const actualHash = createHmac('sha256', salt).update(password).digest('hex');
@@ -20,14 +19,22 @@ function verifyHash(password, stored) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { usuario, password } = req.body || {};
+  if (!usuario || !password) return res.status(400).json({ error: 'Faltan datos' });
 
-  if (!usuario || !password) {
-    return res.status(400).json({ error: 'Faltan datos' });
+  // Acceso admin temporal por variable de entorno
+  const adminPass = process.env.ADMIN_PASSWORD;
+  const adminUser = process.env.ADMIN_USER || 'Hausbrot';
+  if (adminPass && usuario === adminUser && password === adminPass) {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const token = await new SignJWT({ id: 0, usuario: adminUser })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('8h')
+      .sign(secret);
+    return res.status(200).json({ ok: true, token });
   }
 
   try {
@@ -37,15 +44,10 @@ export default async function handler(req, res) {
       .eq('usuario', usuario)
       .single();
 
-    if (error || !data) {
-      return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
-    }
+    if (error || !data) return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
 
     const valid = verifyHash(password, data.password_hash);
-
-    if (!valid) {
-      return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
-    }
+    if (!valid) return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const token = await new SignJWT({ id: data.id, usuario: data.usuario })
@@ -55,7 +57,6 @@ export default async function handler(req, res) {
       .sign(secret);
 
     return res.status(200).json({ ok: true, token });
-
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
