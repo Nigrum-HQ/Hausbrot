@@ -3335,7 +3335,10 @@ async function hbDoLogin(){
     if(d.ok && d.token){
       document.getElementById('hb-login-overlay').style.display='none';
       sessionStorage.setItem('hb_auth','1');
-      sessionStorage.setItem('hb_token',d.token);       cargarDatos().then(()=>{         try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();renderPendientes();}catch(e){}     });   } else {
+      sessionStorage.setItem('hb_token',d.token);
+      cargarDatos().then(()=>{
+        try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();renderPendientes();}catch(e){}
+      });
     } else {
       err.style.display='block';
       document.getElementById('hb-login-pass').value='';
