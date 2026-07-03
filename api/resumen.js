@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { jwtVerify } from 'jose';
 
 const supabase = createClient(
   process.env.SUPA_URL,
@@ -29,21 +28,22 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    const d = data?.data || {};
+    const raw = data?.data;
+    const d = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
     const mesActual = new Date().toISOString().substring(0, 7);
 
+    // Ingresos: turnos (ventas por turno) + manuales (ingresos manuales)
+    const turnosMes = (d.turnos || []).filter(t => (t.fecha || '').startsWith(mesActual));
+    const manualesMes = (d.manuales || []).filter(m => (m.fecha || '').startsWith(mesActual));
+    const totalIngresos =
+      turnosMes.reduce((s, t) => s + (t.total || 0), 0) +
+      manualesMes.reduce((s, m) => s + (m.monto || 0), 0);
+
+    // Gastos
     const gastos = (d.gastos || []).filter(g => (g.fecha || '').startsWith(mesActual));
     const totalGastos = gastos.reduce((s, g) => s + (g.monto || 0), 0);
-    const gastosPagados = gastos.filter(g => g.estado === 'pagado').reduce((s, g) => s + (g.monto || 0), 0);
-    const gastosPendientes = gastos.filter(g => g.estado !== 'pagado').reduce((s, g) => s + (g.monto || 0), 0);
-
-    const ingresos = [
-      ...(d.facturas || []),
-      ...(d.cobranzas || []),
-      ...(d.ingresos || []),
-      ...(d.ventas || []),
-    ].filter(f => (f.fecha || f.fechaEmision || '').startsWith(mesActual));
-    const totalIngresos = ingresos.reduce((s, f) => s + (f.monto || f.total || 0), 0);
+    const gastosPagados = gastos.filter(g => g.estado === 'Pagada').reduce((s, g) => s + (g.monto || 0), 0);
+    const gastosPendientes = gastos.filter(g => g.estado !== 'Pagada').reduce((s, g) => s + (g.monto || 0), 0);
 
     return res.status(200).json({
       ok: true,
