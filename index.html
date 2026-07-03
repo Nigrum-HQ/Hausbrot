@@ -3241,6 +3241,10 @@ async function guardarArchivo(fileId, contenido){
       headers:{'Content-Type':'application/json','x-session-token':hbToken()},
       body: JSON.stringify(contenido)
     });
+    if(!r.ok){
+      const texto = await r.text().catch(()=> '');
+      console.error('[archivo] PUT fileId='+fileId+' status='+r.status, texto);
+    }
     return r.ok;
   }catch(e){console.error('Error guardando archivo',fileId,e);return false;}
 }
@@ -3253,25 +3257,48 @@ async function cargarArchivo(fileId){
   }catch(e){console.error('Error cargando archivo',fileId,e);return null;}
 }
 async function migrarArchivosGrandes(){
-  let cambiado=false;
-  for(const seccion of ['gastos','proveedores','sueldos']){
-    if(!Array.isArray(data[seccion])) continue;
-    for(const item of data[seccion]){
-      if(item.pdfData && !item.pdfFileId){
-        const fileId = item.id*10+1;
-        const ok = await guardarArchivo(fileId, item.pdfData);
-        if(ok){ item.pdfFileId=fileId; delete item.pdfData; cambiado=true; }
-      }
-      if(item.compData && !item.compFileId){
-        const fileId = item.id*10+2;
-        const ok = await guardarArchivo(fileId, item.compData);
-        if(ok){ item.compFileId=fileId; delete item.compData; cambiado=true; }
+  try{
+    let cambiado=false;
+    let migrados=0, fallidos=0;
+    for(const seccion of ['gastos','proveedores','sueldos']){
+      if(!Array.isArray(data[seccion])) continue;
+      for(const item of data[seccion]){
+        if(item.pdfData && !item.pdfFileId){
+          const fileId = item.id*10+1;
+          const ok = await guardarArchivo(fileId, item.pdfData);
+          if(ok){ item.pdfFileId=fileId; delete item.pdfData; cambiado=true; migrados++; }
+          else { fallidos++; console.error('[migración] Falló guardar PDF de', seccion, item.id); }
+        }
+        if(item.compData && !item.compFileId){
+          const fileId = item.id*10+2;
+          const ok = await guardarArchivo(fileId, item.compData);
+          if(ok){ item.compFileId=fileId; delete item.compData; cambiado=true; migrados++; }
+          else { fallidos++; console.error('[migración] Falló guardar comprobante de', seccion, item.id); }
+        }
       }
     }
+    console.log('[migración] Archivos migrados:', migrados, '| Fallidos:', fallidos, '| Cambios pendientes de guardar:', cambiado);
+    if(cambiado){
+      const guardadoOk = await guardarDatosSinError();
+      console.log('[migración] Guardado del bloque principal reducido:', guardadoOk ? 'OK' : 'FALLÓ');
+    }
+  }catch(e){
+    console.error('[migración] Error inesperado:', e);
   }
-  if(cambiado){
-    await guardarDatos();
-    console.log('Migración de archivos adjuntos completada. Datos principales reducidos.');
+}
+
+async function guardarDatosSinError(){
+  try{
+    const json=JSON.stringify(data);
+    const r=await fetch('/api/datos',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','x-session-token':hbToken()},
+      body:json
+    });
+    return r.ok;
+  }catch(e){
+    console.error('[migración] Excepción al guardar:', e);
+    return false;
   }
 }
 
