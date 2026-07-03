@@ -1692,7 +1692,8 @@ function resetearDatos(){
 }
 
 let data={turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[],fichasEmpleadas:{}};
-cargarDatos().then(()=>{
+cargarDatos().then(async ()=>{
+  await migrarArchivosGrandes();
   try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();renderPendientes();}catch(e){}
 });
 
@@ -3233,13 +3234,59 @@ function updateVendedoraSelects(){
 }
 
 
-function abrirPDF(id,seccion){
+async function guardarArchivo(fileId, contenido){
+  try{
+    const r = await fetch('/api/datos?fileId='+fileId, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','x-session-token':hbToken()},
+      body: JSON.stringify(contenido)
+    });
+    return r.ok;
+  }catch(e){console.error('Error guardando archivo',fileId,e);return false;}
+}
+async function cargarArchivo(fileId){
+  try{
+    const r = await fetch('/api/datos?fileId='+fileId, {headers:{'x-session-token':hbToken()}});
+    if(!r.ok) return null;
+    const d = await r.json();
+    return d && d.data ? d.data : null;
+  }catch(e){console.error('Error cargando archivo',fileId,e);return null;}
+}
+async function migrarArchivosGrandes(){
+  let cambiado=false;
+  for(const seccion of ['gastos','proveedores','sueldos']){
+    if(!Array.isArray(data[seccion])) continue;
+    for(const item of data[seccion]){
+      if(item.pdfData && !item.pdfFileId){
+        const fileId = item.id*10+1;
+        const ok = await guardarArchivo(fileId, item.pdfData);
+        if(ok){ item.pdfFileId=fileId; delete item.pdfData; cambiado=true; }
+      }
+      if(item.compData && !item.compFileId){
+        const fileId = item.id*10+2;
+        const ok = await guardarArchivo(fileId, item.compData);
+        if(ok){ item.compFileId=fileId; delete item.compData; cambiado=true; }
+      }
+    }
+  }
+  if(cambiado){
+    await guardarDatos();
+    console.log('Migración de archivos adjuntos completada. Datos principales reducidos.');
+  }
+}
+
+async function abrirPDF(id,seccion){
   const item=data[seccion].find(x=>String(x.id)===String(id));
-  if(!item||!item.pdfData){alert('No hay factura adjunta');return}
+  if(!item||(!item.pdfData && !item.pdfFileId)){alert('No hay factura adjunta');return}
+  let contenido = item.pdfData;
+  if(!contenido && item.pdfFileId){
+    contenido = await cargarArchivo(item.pdfFileId);
+    if(!contenido){alert('No se pudo cargar la factura');return}
+  }
   const win=window.open();
-  const esImagen=item.pdfData.startsWith('data:image');
+  const esImagen=contenido.startsWith('data:image');
   if(esImagen){
-    win.document.write(`<html><head><title>${item.pdfName||'Factura'}</title></head><body style="margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${item.pdfData}" style="max-width:100%;max-height:100vh;object-fit:contain">
+    win.document.write(`<html><head><title>${item.pdfName||'Factura'}</title></head><body style="margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${contenido}" style="max-width:100%;max-height:100vh;object-fit:contain">
 <div id="modal-caja-pdf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:14px;padding:28px 32px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="font-size:16px;font-weight:700;color:#E8601C;margin-bottom:4px">💵 Estado de caja — PDF</div>
@@ -3263,7 +3310,7 @@ function abrirPDF(id,seccion){
 </div>
 </body></html>`);
   } else {
-    win.document.write(`<html><head><title>${item.pdfName||'Factura'}</title></head><body style="margin:0"><embed src="${item.pdfData}" type="application/pdf" width="100%" height="100%">
+    win.document.write(`<html><head><title>${item.pdfName||'Factura'}</title></head><body style="margin:0"><embed src="${contenido}" type="application/pdf" width="100%" height="100%">
 <div id="modal-caja-pdf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:14px;padding:28px 32px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="font-size:16px;font-weight:700;color:#E8601C;margin-bottom:4px">💵 Estado de caja — PDF</div>
@@ -3295,9 +3342,12 @@ function adjuntarPDF(event,id,seccion){
   const idx=data[seccion].findIndex(x=>x.id===id);
   if(idx===-1)return;
   const reader=new FileReader();
-  reader.onload=e=>{
-    data[seccion][idx].pdfData=e.target.result;
+  reader.onload=async e=>{
+    const fileId = id*10+1;
+    await guardarArchivo(fileId, e.target.result);
+    data[seccion][idx].pdfFileId=fileId;
     data[seccion][idx].pdfName=file.name;
+    delete data[seccion][idx].pdfData;
     guardarDatos();
     if(seccion==='gastos')renderGastos();
     else if(seccion==='proveedores')renderProveedores();
@@ -3322,6 +3372,7 @@ async function doLogin(){
     if(sesion && sesion.token) sessionStorage.setItem('hb_token', sesion.token);
     // Cargar datos ahora que el token está disponible
     await cargarDatos();
+    await migrarArchivosGrandes();
     try{updateDashboard();renderTurnos();renderGastos();renderProveedores();renderSueldos();renderCaja();renderFranqueros();renderFranquerosPagos();updateFranqueroSelects();renderManuales();renderVendedoras();updateVendedoraSelects();renderFichas();renderPendientes();}catch(e){}
   }catch(e){
     err.style.display='block';
@@ -3683,9 +3734,12 @@ function adjuntarComp(event, id, seccion){
   const idx = data[seccion].findIndex(x=>x.id===id);
   if(idx===-1) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    data[seccion][idx].compData = e.target.result;
+  reader.onload = async e => {
+    const fileId = id*10+2;
+    await guardarArchivo(fileId, e.target.result);
+    data[seccion][idx].compFileId = fileId;
     data[seccion][idx].compName = file.name;
+    delete data[seccion][idx].compData;
     guardarDatos();
     if(seccion==='gastos') renderGastos();
     else if(seccion==='proveedores') renderProveedores();
@@ -3694,14 +3748,19 @@ function adjuntarComp(event, id, seccion){
   reader.readAsDataURL(file);
 }
 
-function abrirComp(id, seccion){
+async function abrirComp(id, seccion){
   const item = data[seccion].find(x=>String(x.id)===String(id));
-  if(!item||!item.compData){ alert('No hay comprobante adjunto'); return; }
+  if(!item||(!item.compData && !item.compFileId)){ alert('No hay comprobante adjunto'); return; }
+  let contenido = item.compData;
+  if(!contenido && item.compFileId){
+    contenido = await cargarArchivo(item.compFileId);
+    if(!contenido){ alert('No se pudo cargar el comprobante'); return; }
+  }
   const w = window.open('','_blank');
-  if(item.compData.startsWith('data:image')){
-    w.document.write('<html><body style="margin:0"><img src="'+item.compData+'" style="max-width:100%"></body></html>');
+  if(contenido.startsWith('data:image')){
+    w.document.write('<html><body style="margin:0"><img src="'+contenido+'" style="max-width:100%"></body></html>');
   } else {
-    w.document.write('<html><body style="margin:0"><iframe src="'+item.compData+'" style="width:100%;height:100vh;border:none"></iframe></body></html>');
+    w.document.write('<html><body style="margin:0"><iframe src="'+contenido+'" style="width:100%;height:100vh;border:none"></iframe></body></html>');
   }
 }
 </script>
