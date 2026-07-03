@@ -21,15 +21,18 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'No autorizado' });
   }
 
+  const fileId = req.query && req.query.fileId ? Number(req.query.fileId) : null;
+  const rowId = fileId || 1;
+
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
         .from('hausbrot_data')
         .select('data')
-        .eq('id', 1)
-        .single();
+        .eq('id', rowId)
+        .maybeSingle();
       if (error) throw error;
-      return res.status(200).json(data);
+      return res.status(200).json(data || { data: null });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -39,8 +42,7 @@ export default async function handler(req, res) {
     try {
       const { error } = await supabase
         .from('hausbrot_data')
-        .update({ data: req.body })
-        .eq('id', 1);
+        .upsert({ id: rowId, data: req.body });
       if (error) throw error;
       return res.status(200).json({ ok: true });
     } catch (err) {
