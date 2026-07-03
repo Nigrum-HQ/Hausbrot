@@ -3234,6 +3234,13 @@ function updateVendedoraSelects(){
 }
 
 
+function nuevoFileId(){
+  if(!data._nextFileId || typeof data._nextFileId !== 'number') data._nextFileId = 1000;
+  const id = data._nextFileId;
+  data._nextFileId = id + 1;
+  return id;
+}
+
 async function guardarArchivo(fileId, contenido){
   try{
     const r = await fetch('/api/datos?fileId='+fileId, {
@@ -3264,13 +3271,13 @@ async function migrarArchivosGrandes(){
       if(!Array.isArray(data[seccion])) continue;
       for(const item of data[seccion]){
         if(item.pdfData && !item.pdfFileId){
-          const fileId = item.id*10+1;
+          const fileId = nuevoFileId();
           const ok = await guardarArchivo(fileId, item.pdfData);
           if(ok){ item.pdfFileId=fileId; delete item.pdfData; cambiado=true; migrados++; }
           else { fallidos++; console.error('[migración] Falló guardar PDF de', seccion, item.id); }
         }
         if(item.compData && !item.compFileId){
-          const fileId = item.id*10+2;
+          const fileId = nuevoFileId();
           const ok = await guardarArchivo(fileId, item.compData);
           if(ok){ item.compFileId=fileId; delete item.compData; cambiado=true; migrados++; }
           else { fallidos++; console.error('[migración] Falló guardar comprobante de', seccion, item.id); }
@@ -3370,7 +3377,7 @@ function adjuntarPDF(event,id,seccion){
   if(idx===-1)return;
   const reader=new FileReader();
   reader.onload=async e=>{
-    const fileId = id*10+1;
+    const fileId = nuevoFileId();
     await guardarArchivo(fileId, e.target.result);
     data[seccion][idx].pdfFileId=fileId;
     data[seccion][idx].pdfName=file.name;
@@ -3762,7 +3769,7 @@ function adjuntarComp(event, id, seccion){
   if(idx===-1) return;
   const reader = new FileReader();
   reader.onload = async e => {
-    const fileId = id*10+2;
+    const fileId = nuevoFileId();
     await guardarArchivo(fileId, e.target.result);
     data[seccion][idx].compFileId = fileId;
     data[seccion][idx].compName = file.name;
