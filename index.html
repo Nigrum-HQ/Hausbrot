@@ -2952,7 +2952,7 @@ function mesesConDatos(){
   data.proveedores.forEach(p=>p.fecha&&set.add(p.fecha.slice(0,7)));
   data.sueldos.forEach(s=>s.fecha&&set.add(s.fecha.slice(0,7)));
   data.franquerosPagos.forEach(p=>p.mes&&set.add(p.mes));
-  if(set.size>0){const hoy=new Date();set.add(hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0'));}
+  if(set.size>0){const hoy=new Date();for(let n=0;n<=1;n++){const d=new Date(hoy.getFullYear(),hoy.getMonth()+n,1);set.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}}
  return[...set].sort();
 }
 
@@ -3010,6 +3010,7 @@ function updateAnalisis(){
     const mesesDesc=meses.slice().reverse();
     sel.innerHTML=mesesDesc.map(m=>`<option value="${m}">${mesLabelFmt(m)}</option>`).join('');
     sel.dataset.poblado='1';
+    {const hoy=new Date();const k=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');if(meses.includes(k))sel.value=k;}
   }
   // Si el mes seleccionado ya no existe (datos borrados), volver al más reciente
   if(!meses.includes(sel.value))sel.value=meses[meses.length-1];
