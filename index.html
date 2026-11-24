@@ -1635,7 +1635,8 @@ function exportarAAbesa(){
 }
 
 
-async function guardarDatos(){
+function avisoGuardado(msg){let b=document.getElementById('aviso-guardado');if(!b){b=document.createElement('div');b.id='aviso-guardado';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#A32D2D;color:#fff;padding:12px 16px;font:600 14px system-ui,sans-serif;text-align:center;cursor:pointer';b.onclick=function(){b.remove();};document.body.appendChild(b);}b.textContent=msg;}
+ async function guardarDatos(){
   try{
     const json=JSON.stringify(data);
     const r=await fetch('/api/datos',{
@@ -1644,9 +1645,9 @@ async function guardarDatos(){
       body:json
     });
     if(r.status===401){sessionStorage.removeItem('hb_auth');sessionStorage.removeItem('hb_token');location.reload();return;}
-    const ind=document.getElementById('save-indicator');
+    if(!r.ok){avisoGuardado('ATENCION: NO SE GUARDARON LOS CAMBIOS (error '+r.status+'). No cierres ni recargues esta pantalla: toca Exportar datos en Resumen y avisa.');return;}var _ab=document.getElementById('aviso-guardado');if(_ab)_ab.remove();const ind=document.getElementById('save-indicator');
     if(ind){ind.style.display='inline';clearTimeout(ind._t);ind._t=setTimeout(()=>ind.style.display='none',2000);}
-  }catch(e){console.error('Error guardando datos',e);}
+  }catch(e){console.error('Error guardando datos',e);avisoGuardado('ATENCION: NO SE GUARDARON LOS CAMBIOS (sin conexion o error del servidor). No cierres ni recargues esta pantalla: toca Exportar datos en Resumen y avisa.');}
 }
 async function cargarDatos(){
   try{
