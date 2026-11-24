@@ -1636,16 +1636,19 @@ function exportarAAbesa(){
 
 
 function avisoGuardado(msg){let b=document.getElementById('aviso-guardado');if(!b){b=document.createElement('div');b.id='aviso-guardado';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#A32D2D;color:#fff;padding:12px 16px;font:600 14px system-ui,sans-serif;text-align:center;cursor:pointer';b.onclick=function(){b.remove();};document.body.appendChild(b);}b.textContent=msg;}
+function hbRespaldoLocal(json,ok){try{localStorage.setItem('hb_respaldo_local',JSON.stringify({ts:new Date().toISOString(),ok:ok,json:json}));}catch(e){}}
+function hbCuentaRegistros(o){return ['turnos','manuales','gastos','proveedores','sueldos','franquerosPagos'].reduce(function(s,k){return s+((o&&o[k])?o[k].length:0);},0);}
+function hbOfrecerRestaurar(){try{const raw=localStorage.getItem('hb_respaldo_local');if(!raw)return;const r=JSON.parse(raw);if(r.ok!==false)return;const loc=JSON.parse(r.json);const nl=hbCuentaRegistros(loc),ns=hbCuentaRegistros(data);if(nl<=ns)return;try{localStorage.setItem('hb_respaldo_pendiente',raw);}catch(e2){}const b=document.createElement('div');b.id='aviso-restaurar';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99998;background:#B45309;color:#fff;padding:12px 16px;font:600 14px system-ui,sans-serif;text-align:center';b.innerHTML='ATENCION: hay cambios que NO llegaron a guardarse en el servidor ('+new Date(r.ts).toLocaleString('es-AR')+'): '+nl+' registros en este equipo vs '+ns+' en el servidor. <button id="hb-rest-si" style="margin:0 8px;padding:6px 12px;font-weight:700;cursor:pointer">Restaurar y guardar</button><button id="hb-rest-no" style="padding:6px 12px;cursor:pointer">Ahora no</button>';document.body.appendChild(b);document.getElementById('hb-rest-no').onclick=function(){b.remove();};document.getElementById('hb-rest-si').onclick=async function(){data=Object.assign({turnos:[],manuales:[],gastos:[],proveedores:[],sueldos:[],caja:[],franqueros:[],franquerosPagos:[],vendedoras:[],fichas:[],fichasEmpleadas:{}},loc);await guardarDatos();location.reload();};}catch(e){console.error('respaldo local',e);}}
  async function guardarDatos(){
   try{
-    const json=JSON.stringify(data);
+    await migrarArchivosGrandes();const json=JSON.stringify(data);hbRespaldoLocal(json,false);if(json.length>4300000){avisoGuardado('ATENCION: los datos pesan demasiado y el servidor podria rechazarlos. Avisa para revisarlo.');}
     const r=await fetch('/api/datos',{
       method:'PUT',
       headers:{'Content-Type':'application/json','x-session-token':hbToken()},
       body:json
     });
     if(r.status===401){sessionStorage.removeItem('hb_auth');sessionStorage.removeItem('hb_token');location.reload();return;}
-    if(!r.ok){avisoGuardado('ATENCION: NO SE GUARDARON LOS CAMBIOS (error '+r.status+'). No cierres ni recargues esta pantalla: toca Exportar datos en Resumen y avisa.');return;}var _ab=document.getElementById('aviso-guardado');if(_ab)_ab.remove();const ind=document.getElementById('save-indicator');
+    if(!r.ok){avisoGuardado('ATENCION: NO SE GUARDARON LOS CAMBIOS (error '+r.status+'). No cierres ni recargues esta pantalla: toca Exportar datos en Resumen y avisa.');return;}var _ab=document.getElementById('aviso-guardado');if(_ab)_ab.remove();hbRespaldoLocal(json,true);const ind=document.getElementById('save-indicator');
     if(ind){ind.style.display='inline';clearTimeout(ind._t);ind._t=setTimeout(()=>ind.style.display='none',2000);}
   }catch(e){console.error('Error guardando datos',e);avisoGuardado('ATENCION: NO SE GUARDARON LOS CAMBIOS (sin conexion o error del servidor). No cierres ni recargues esta pantalla: toca Exportar datos en Resumen y avisa.');}
 }
@@ -1678,7 +1681,7 @@ async function cargarDatos(){
         }catch(e2){console.error('Error leyendo localStorage',k,e2);}
       }
     }
-  }catch(e){console.error('Error cargando datos',e);}
+  hbOfrecerRestaurar();}catch(e){console.error('Error cargando datos',e);}
 }
 function exportarDatos(){
   try{
