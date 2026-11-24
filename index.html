@@ -2952,7 +2952,8 @@ function mesesConDatos(){
   data.proveedores.forEach(p=>p.fecha&&set.add(p.fecha.slice(0,7)));
   data.sueldos.forEach(s=>s.fecha&&set.add(s.fecha.slice(0,7)));
   data.franquerosPagos.forEach(p=>p.mes&&set.add(p.mes));
-  return[...set].sort();
+  if(set.size>0){const hoy=new Date();set.add(hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0'));}
+ return[...set].sort();
 }
 
 function calcMes(m){
